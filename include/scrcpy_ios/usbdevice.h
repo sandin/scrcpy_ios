@@ -2,6 +2,7 @@
 #define SCRCPY_IOS_USB_DEVICE_H
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,7 @@ class UsbDevice {
   ~UsbDevice() {}
 
   bool Open();
+  bool Reopen();
   bool Close();
 
   int Control(int requesttype, int request, int value, int index, char* bytes, int size,
@@ -59,8 +61,7 @@ class UsbDevice {
 
 // Find all usb devices with a custom filter
 using UsbDeviceFilter = std::function<bool(unsigned short, unsigned short)>;
-UsbDevice* FindUsbDevice(UsbDeviceFilter filter);
-void FreeUsbDevice(UsbDevice* device);
+std::vector<std::unique_ptr<UsbDevice>> FindUsbDevices(UsbDeviceFilter filter);
 
 }  // namespace scrcpy_ios
 

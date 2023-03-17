@@ -12,6 +12,7 @@ IF (WIN32)
 ELSE()
     # libusb
     # TODO: 
+    add_definitions(-DLIBUSB_WIN32)
     add_definitions(-DLIBUSB)
 ENDIF()
 
@@ -20,9 +21,11 @@ include_directories("./include")
 set(HEADER_FILES
     include/scrcpy_ios/screenrecorder.h
     include/scrcpy_ios/usbdevice.h
+    include/scrcpy_ios/devicemanager.h
 )
 set(SOURCE_FILES
     src/usbdevice_win.cpp
+    src/devicemanager.cpp
     src/screenrecorder.cpp
 )
 
