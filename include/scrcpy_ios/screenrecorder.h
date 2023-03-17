@@ -12,6 +12,8 @@ class ScreenRecorder {
   ~ScreenRecorder() { FreeUsbDevice(dev_); }
 
   static bool EnableQuicktimeConfigDesc(UsbDevice* dev);
+  static bool DisableQuicktimeConfigDesc(UsbDevice* dev);
+  static bool ClearFeature(UsbDevice* dev, unsigned char endpoint_address);
 
  private:
   UsbDevice* dev_;
