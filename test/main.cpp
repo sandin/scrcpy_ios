@@ -1,9 +1,9 @@
-#include <memory> // unique_ptr
+#include <memory>  // unique_ptr
 
+#include "scrcpy_ios/devicemanager.h"
 #include "scrcpy_ios/macro_def.h"
 #include "scrcpy_ios/screenrecorder.h"
 #include "scrcpy_ios/usbdevice.h"
-#include "scrcpy_ios/devicemanager.h"
 
 using namespace scrcpy_ios;
 
@@ -34,12 +34,10 @@ int main() {
     frame_count++;
     return frame_count < 10;
   });
-  recorder.SetAudioSampleCallback([](const char* buf, size_t size) {
-    return true;
-  });
-  int ret = recorder.StartRecording();
-  if (ret != 0) {
-    ISCRCPY_LOG_E("Can not start recording%s\n");
+  recorder.SetAudioSampleCallback([](const char* buf, size_t size) { return true; });
+  ScreenRecorder::Result ret = recorder.StartRecording();
+  if (ret != ScreenRecorder::Result::kOk) {
+    ISCRCPY_LOG_E("Can not start recording\n");
     return -1;
   }
 

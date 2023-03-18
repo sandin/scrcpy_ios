@@ -13,26 +13,26 @@ static bool libusb_inited = false;
 constexpr char ENDPOINT_NUM_MASK = 0x0f;
 constexpr char ENDPOINT_DIRECTION_MASK = 0x80;
 
-std::vector<std::unique_ptr<UsbDevice>> FindUsbDevices(UsbDeviceFilter filter);
-if (!libusb_inited) {
-  usb_init();
-  libusb_inited = true;
-}
-usb_find_busses();  /* find all busses */
-usb_find_devices(); /* find all connected devices */
+std::vector<std::unique_ptr<UsbDevice>> FindUsbDevices(UsbDeviceFilter filter) {
+  if (!libusb_inited) {
+    usb_init();
+    libusb_inited = true;
+  }
+  usb_find_busses();  /* find all busses */
+  usb_find_devices(); /* find all connected devices */
 
-std::vector<std::unique_ptr<UsbDevice>> devices;
-struct usb_bus* bus = NULL;
-struct usb_device* dev = NULL;
-for (bus = usb_get_busses(); bus; bus = bus->next) {
-  for (dev = bus->devices; dev; dev = dev->next) {
-    if (filter(dev->descriptor.idVendor, dev->descriptor.idProduct)) {
-      devices.emplace_back(std::make_shared<UsbDevice>(dev));
+  std::vector<std::unique_ptr<UsbDevice>> devices;
+  struct usb_bus* bus = NULL;
+  struct usb_device* dev = NULL;
+  for (bus = usb_get_busses(); bus; bus = bus->next) {
+    for (dev = bus->devices; dev; dev = dev->next) {
+      if (filter(dev->descriptor.idVendor, dev->descriptor.idProduct)) {
+        devices.emplace_back(std::make_unique<UsbDevice>(dev));
+      }
     }
   }
-}
 
-return devices;
+  return devices;
 }
 
 void FreeUsbDevice(UsbDevice* device) { delete device; }
@@ -91,6 +91,8 @@ bool UsbDevice::Open() {
   dev_h_ = usb_open(dev_);
   return dev_h_ != nullptr;
 }
+
+bool UsbDevice::IsOpened() const { return dev_h_ != nullptr; }
 
 bool UsbDevice::Reopen() {
   return false;  // TODO

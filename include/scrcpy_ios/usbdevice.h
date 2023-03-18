@@ -31,13 +31,15 @@ class UsbDevice {
  public:
   enum Result { Ok = 0 };
 
-  UsbDevice(struct usb_device* dev = nullptr) : dev_(dev), dev_h_(nullptr) {}
+  UsbDevice(struct usb_device* dev) : dev_(dev), dev_h_(nullptr) {}
 
   ~UsbDevice() {}
 
   bool Open();
   bool Reopen();
   bool Close();
+
+  bool IsOpened() const;
 
   int Control(int requesttype, int request, int value, int index, char* bytes, int size,
               int timeout) const;
