@@ -37,7 +37,7 @@ int main() {
   recorder.SetAudioSampleCallback([](const char* buf, size_t size) { return true; });
   ScreenRecorder::Result ret = recorder.StartRecording();
   if (ret != ScreenRecorder::Result::kOk) {
-    ISCRCPY_LOG_E("Can not start recording\n");
+    ISCRCPY_LOG_E("Can not start recording, ret=%d\n", ret);
     return -1;
   }
 

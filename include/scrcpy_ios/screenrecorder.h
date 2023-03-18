@@ -38,6 +38,8 @@ class ScreenRecorder {
   static bool EnableQuicktimeConfigDesc(UsbDevice* dev);
   static bool DisableQuicktimeConfigDesc(UsbDevice* dev);
   static bool ClearFeature(UsbDevice* dev, unsigned char endpoint_address);
+  static bool FindInterface(UsbDevice* dev, unsigned char interface_sub_class,
+                                  UsbInterface& result);
 
   Result Prepare();
   Result SetConfigAndClaimInterface();

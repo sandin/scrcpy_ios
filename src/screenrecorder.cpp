@@ -5,8 +5,8 @@
 using namespace scrcpy_ios;
 
 constexpr int kVendorSpecInterfaceclass = 0xFF;
-constexpr int kUsbmuxInterfaceSubclass = 0xFE;
-constexpr int kQuicktimeInterfaceSubclass = 0x2A;
+constexpr int kUsbmuxInterfaceClass = 0xFE;
+constexpr int kQuicktimeInterfaceClass = 0x2A;
 
 // static
 bool ScreenRecorder::EnableQuicktimeConfigDesc(UsbDevice* dev) {
@@ -26,16 +26,19 @@ bool ScreenRecorder::ClearFeature(UsbDevice* dev, unsigned char endpoint_address
   return dev->Control(0x02, 0x01, 0x00, endpoint_address, NULL, 0, 1000) == UsbDevice::Ok;
 }
 
+// static
+bool FindInterface(UsbDevice* dev, unsigned char interface_sub_class, UsbInterface& result) {
+  return dev->FindInterface(kVendorSpecInterfaceclass, interface_sub_class, result);
+}
+
 ScreenRecorder::Result ScreenRecorder::Prepare() {
   ISCRCPY_ASSERT(dev_);
-  if (dev_->Open()) {
+  if (!dev_->Open()) {
     return Result::kErrCanNotOpenDevice;
   }
 
-  bool found_usbmux =
-      dev_->FindInterface(kVendorSpecInterfaceclass, kUsbmuxInterfaceSubclass, usbmux_interface_);
-  bool found_quicktime = dev_->FindInterface(kVendorSpecInterfaceclass, kQuicktimeInterfaceSubclass,
-                                             quicktime_interface_);
+  bool found_usbmux = FindInterface(dev_.get(), kUsbmuxInterfaceClass, usbmux_interface_);
+  bool found_quicktime = FindInterface(dev_.get(), kQuicktimeInterfaceClass, quicktime_interface_);
   ISCRCPY_LOG_D("Found a iOS device %s, usbmux=%d, quicktime=%d\n", dev_->GetName().c_str(),
                 found_usbmux, found_quicktime);
   if (!found_usbmux) {
@@ -45,12 +48,15 @@ ScreenRecorder::Result ScreenRecorder::Prepare() {
 
   if (!found_quicktime) {
     bool success = ScreenRecorder::EnableQuicktimeConfigDesc(dev_.get());
+    ISCRCPY_LOG_D("Enable Quicktime Config Desc, result=%d\n", success);
     if (!success) {
       dev_->Close();
       return Result::kErrCanNotEnableQuicktime;
     }
 
+    ISCRCPY_LOG_D("Start reopening the device...\n");
     success = dev_->Reopen();
+    ISCRCPY_LOG_D("reopen result=%d\n", success);
     if (!success) {
       dev_->Close();
       return Result::kErrCanNotOpenDevice;
@@ -71,14 +77,14 @@ ScreenRecorder::Result ScreenRecorder::SetConfigAndClaimInterface() {
   ISCRCPY_ASSERT(dev_);
 
   int ret = dev_->SetConfiguration(quicktime_interface_.config_desc_num);
+  ISCRCPY_LOG_D("Set configuration to quicktime interface, ret=%d\n", ret);
   if (ret != UsbDevice::Ok) {
-    ISCRCPY_LOG_E("Can not set configuration to quicktime interface, ret=%d\n", ret);
     return Result::kErrCanNotSetConfig;
   }
 
   ret = dev_->ClaimInterface(quicktime_interface_.interface_num);
+  ISCRCPY_LOG_D("Claim quicktime interface, ret=%d\n", ret);
   if (ret != UsbDevice::Ok) {
-    ISCRCPY_LOG_E("Can not claim quicktime interface, ret=%d\n", ret);
     return Result::kErrCanNotClaimInterface;
   }
 
@@ -90,27 +96,27 @@ ScreenRecorder::Result ScreenRecorder::SetConfigAndClaimInterface() {
     }
   }
   if (in_endpoint_ == nullptr) {
-    ISCRCPY_LOG_E("Can not found in endpoint of quicktime interface\n");
     return Result::kErrCanNotFoundEndpoint;
   }
   if (out_endpoint_ == nullptr) {
-    ISCRCPY_LOG_E("Can not found out endpoint of quicktime interface\n");
     return Result::kErrCanNotFoundEndpoint;
   }
 
   bool success = ClearFeature(dev_.get(), in_endpoint_->address);
+  ISCRCPY_LOG_D("Clear feature of in endpoint, result=%d\n", success);
   if (!success) {
-    ISCRCPY_LOG_E("Can not clear feature for in endpoint\n");
     return Result::kErrCanNotClearFeature;
   }
   success = ScreenRecorder::ClearFeature(dev_.get(), out_endpoint_->address);
+  ISCRCPY_LOG_D("Clear feature of out endpoint, result=%d\n", success);
   if (!success) {
-    ISCRCPY_LOG_E("Can not clear feature for out endpoint\n");
     return Result::kErrCanNotClearFeature;
   }
 
-  dev_->ClearHalt(in_endpoint_->address);
-  dev_->ClearHalt(out_endpoint_->address);
+  ret = dev_->ClearHalt(in_endpoint_->address);
+  ISCRCPY_LOG_D("Clear halt of in endpoint, ret=%d\n", success);
+  ret = dev_->ClearHalt(out_endpoint_->address);
+  ISCRCPY_LOG_D("Clear halt of out endpoint, ret=%d\n", success);
 
   return Result::kOk;
 }
