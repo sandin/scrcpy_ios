@@ -1,12 +1,9 @@
 #include "scrcpy_ios/screenrecorder.h"
 
+#include "scrcpy_ios/devicemanager.h"
 #include "scrcpy_ios/macro_def.h"
 
 using namespace scrcpy_ios;
-
-constexpr int kVendorSpecInterfaceclass = 0xFF;
-constexpr int kUsbmuxInterfaceClass = 0xFE;
-constexpr int kQuicktimeInterfaceClass = 0x2A;
 
 // static
 bool ScreenRecorder::EnableQuicktimeConfigDesc(UsbDevice* dev) {
@@ -27,7 +24,8 @@ bool ScreenRecorder::ClearFeature(UsbDevice* dev, unsigned char endpoint_address
 }
 
 // static
-bool FindInterface(UsbDevice* dev, unsigned char interface_sub_class, UsbInterface& result) {
+bool ScreenRecorder::FindInterface(UsbDevice* dev, unsigned char interface_sub_class,
+                                   UsbInterface& result) {
   return dev->FindInterface(kVendorSpecInterfaceclass, interface_sub_class, result);
 }
 
@@ -37,30 +35,33 @@ ScreenRecorder::Result ScreenRecorder::Prepare() {
     return Result::kErrCanNotOpenDevice;
   }
 
-  bool found_usbmux = FindInterface(dev_.get(), kUsbmuxInterfaceClass, usbmux_interface_);
-  bool found_quicktime = FindInterface(dev_.get(), kQuicktimeInterfaceClass, quicktime_interface_);
-  ISCRCPY_LOG_D("Found a iOS device %s, usbmux=%d, quicktime=%d\n", dev_->GetName().c_str(),
-                found_usbmux, found_quicktime);
-  if (!found_usbmux) {
-    dev_->Close();
-    return Result::kErrNotValidDevice;
-  }
-
-  if (!found_quicktime) {
-    bool success = ScreenRecorder::EnableQuicktimeConfigDesc(dev_.get());
-    ISCRCPY_LOG_D("Enable Quicktime Config Desc, result=%d\n", success);
-    if (!success) {
-      dev_->Close();
-      return Result::kErrCanNotEnableQuicktime;
+  int retry = 0;
+  while (retry < 5) {
+    bool found_usbmux = FindInterface(dev_.get(), kUsbmuxInterfaceClass, usbmux_interface_);
+    bool found_quicktime =
+        FindInterface(dev_.get(), kQuicktimeInterfaceClass, quicktime_interface_);
+    ISCRCPY_LOG_D("Found a iOS device %s, usbmux=%d, quicktime=%d\n", dev_->GetName().c_str(),
+                  found_usbmux, found_quicktime);
+    if (found_usbmux && found_quicktime) {
+      break;  // the device has quicktime turned on
     }
 
-    ISCRCPY_LOG_D("Start reopening the device...\n");
-    success = dev_->Reopen();
-    ISCRCPY_LOG_D("reopen result=%d\n", success);
-    if (!success) {
-      dev_->Close();
-      return Result::kErrCanNotOpenDevice;
+    if (!found_quicktime) {
+      bool success = ScreenRecorder::EnableQuicktimeConfigDesc(dev_.get());
+      ISCRCPY_LOG_D("Enable Quicktime Config Desc, result=%d\n", success);
+      if (!success) {
+        dev_->Close();
+        return Result::kErrCanNotEnableQuicktime;
+      }
+
+      ISCRCPY_LOG_D("Start reopening the device...\n");
+      success = dev_->Reopen();
+      ISCRCPY_LOG_D("reopen result=%d\n", success);
+      if (!success) {
+        return Result::kErrCanNotOpenDevice;
+      }
     }
+    retry++;
   }
 
   Result result = SetConfigAndClaimInterface();
@@ -77,13 +78,15 @@ ScreenRecorder::Result ScreenRecorder::SetConfigAndClaimInterface() {
   ISCRCPY_ASSERT(dev_);
 
   int ret = dev_->SetConfiguration(quicktime_interface_.config_desc_num);
-  ISCRCPY_LOG_D("Set configuration to quicktime interface, ret=%d\n", ret);
+  ISCRCPY_LOG_D("Set configuration to quicktime interface(config_desc_num=%d), ret=%d\n",
+                quicktime_interface_.config_desc_num, ret);
   if (ret != UsbDevice::Ok) {
     return Result::kErrCanNotSetConfig;
   }
 
   ret = dev_->ClaimInterface(quicktime_interface_.interface_num);
-  ISCRCPY_LOG_D("Claim quicktime interface, ret=%d\n", ret);
+  ISCRCPY_LOG_D("Claim quicktime interface(num=%d), ret=%d\n", quicktime_interface_.interface_num,
+                ret);
   if (ret != UsbDevice::Ok) {
     return Result::kErrCanNotClaimInterface;
   }
@@ -103,20 +106,23 @@ ScreenRecorder::Result ScreenRecorder::SetConfigAndClaimInterface() {
   }
 
   bool success = ClearFeature(dev_.get(), in_endpoint_->address);
-  ISCRCPY_LOG_D("Clear feature of in endpoint, result=%d\n", success);
+  ISCRCPY_LOG_D("Clear feature of in endpoint(address=%d), result=%d\n", in_endpoint_->address,
+                success);
   if (!success) {
     return Result::kErrCanNotClearFeature;
   }
   success = ScreenRecorder::ClearFeature(dev_.get(), out_endpoint_->address);
-  ISCRCPY_LOG_D("Clear feature of out endpoint, result=%d\n", success);
+  ISCRCPY_LOG_D("Clear feature of out endpoint(address=%d), result=%d\n", out_endpoint_->address,
+                success);
   if (!success) {
     return Result::kErrCanNotClearFeature;
   }
 
   ret = dev_->ClearHalt(in_endpoint_->address);
-  ISCRCPY_LOG_D("Clear halt of in endpoint, ret=%d\n", success);
+  ISCRCPY_LOG_D("Clear halt of in endpoint(address=%d), ret=%d\n", in_endpoint_->address, success);
   ret = dev_->ClearHalt(out_endpoint_->address);
-  ISCRCPY_LOG_D("Clear halt of out endpoint, ret=%d\n", success);
+  ISCRCPY_LOG_D("Clear halt of out endpoint(address=%d), ret=%d\n", out_endpoint_->address,
+                success);
 
   return Result::kOk;
 }

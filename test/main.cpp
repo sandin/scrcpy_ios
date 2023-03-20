@@ -23,7 +23,7 @@ int main() {
     }
   }
   if (!device) {
-    ISCRCPY_LOG_E("Can not find the usb device, usb_serial=%s\n", usb_serial);
+    ISCRCPY_LOG_E("Can not find the usb device, usb_serial=%s\n", usb_serial.c_str());
     return -1;
   }
 

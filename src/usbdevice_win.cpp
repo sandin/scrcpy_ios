@@ -13,7 +13,8 @@ static bool libusb_inited = false;
 constexpr char ENDPOINT_NUM_MASK = 0x0f;
 constexpr char ENDPOINT_DIRECTION_MASK = 0x80;
 
-std::vector<std::unique_ptr<UsbDevice>> FindUsbDevices(UsbDeviceFilter filter) {
+using UsbDeviceWalker = std::function<void(struct usb_bus*, struct usb_device*)>;
+static void ForEachUsbDevices(UsbDeviceWalker walker) {
   if (!libusb_inited) {
     usb_init();
     libusb_inited = true;
@@ -26,12 +27,35 @@ std::vector<std::unique_ptr<UsbDevice>> FindUsbDevices(UsbDeviceFilter filter) {
   struct usb_device* dev = NULL;
   for (bus = usb_get_busses(); bus; bus = bus->next) {
     for (dev = bus->devices; dev; dev = dev->next) {
-      if (filter(dev->descriptor.idVendor, dev->descriptor.idProduct)) {
-        devices.emplace_back(std::make_unique<UsbDevice>(dev));
-      }
+      walker(bus, dev);
     }
   }
+}
 
+static struct usb_device* FindOneUsbDevice(unsigned short vendor_id, unsigned short product_id,
+                                           std::string serial_number) {
+  struct usb_device* found = nullptr;
+  ForEachUsbDevices([&](struct usb_bus* bus, struct usb_device* dev) {
+    if (dev->descriptor.idVendor == vendor_id && dev->descriptor.idProduct == product_id) {
+      usb_dev_handle* dev_h = usb_open(dev);
+      char buffer[256];
+      usb_get_string_simple(dev_h, dev->descriptor.iSerialNumber, buffer, sizeof(buffer));
+      bool match = strcmp(serial_number.c_str(), buffer) == 0;
+      usb_close(dev_h);
+      found = dev;
+    }
+  });
+  return found;
+}
+
+std::vector<std::unique_ptr<UsbDevice>> FindUsbDevices(UsbDeviceFilter filter) {
+  std::vector<std::unique_ptr<UsbDevice>> devices;
+  ForEachUsbDevices([&](struct usb_bus* bus, struct usb_device* dev) {
+    std::unique_ptr<UsbDevice> device = std::make_unique<UsbDevice>(dev);
+    if (filter(device.get())) {
+      devices.emplace_back(std::move(device));
+    }
+  });
   return devices;
 }
 
@@ -95,7 +119,24 @@ bool UsbDevice::Open() {
 bool UsbDevice::IsOpened() const { return dev_h_ != nullptr; }
 
 bool UsbDevice::Reopen() {
-  return false;  // TODO
+  ISCRCPY_ASSERT(IsOpened(), "The device should have been opened.");
+
+  std::string serial_number = GetSerialNumber();
+  unsigned short vendor_id = GetVendorId();
+  unsigned short product_id = GetProductId();
+  Close();
+
+  Sleep(30 * 1000);  // TODO: windows API
+
+  // Find and create a new device with same vendor_id & product_id & serial_number
+  struct usb_device* dev = FindOneUsbDevice(vendor_id, product_id, serial_number);
+  if (!dev) {
+    ISCRCPY_LOG_E("Can not find the device, vendor_id=0x%x, product_id=0x%x\n", vendor_id,
+                  product_id);
+    return false;
+  }
+  dev_ = dev;
+  return Open();
 }
 
 bool UsbDevice::Close() {
@@ -124,6 +165,16 @@ std::string UsbDevice::GetSerialNumber() const {
   char buffer[256];
   usb_get_string_simple(dev_h_, dev_->descriptor.iSerialNumber, buffer, sizeof(buffer));
   return std::string(buffer);
+}
+
+unsigned short UsbDevice::GetVendorId() const {
+  ISCRCPY_ASSERT(dev_, "device can not be null!");
+  return dev_->descriptor.idVendor;
+}
+
+unsigned short UsbDevice::GetProductId() const {
+  ISCRCPY_ASSERT(dev_, "device can not be null!");
+  return dev_->descriptor.idProduct;
 }
 
 }  // namespace scrcpy_ios

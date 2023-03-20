@@ -5,17 +5,33 @@
 
 using namespace scrcpy_ios;
 
-constexpr int kiPhoneVendorId = 0x05AC;
-constexpr int kiPhoneMaxProductId = 0x12A8;
-
 // static
 std::unique_ptr<UsbDevice> DeviceManager::FindIosDevice(std::string usb_serial) {
-  return nullptr;  // TODO:
+  std::vector<std::unique_ptr<UsbDevice>> devices = FindUsbDevices([&](UsbDevice* dev) {
+    if (dev->GetVendorId() == kUSBAppleVendorID) {
+      UsbInterface usbmux_interface_;
+      bool has_usbmux =
+          dev->FindInterface(kVendorSpecInterfaceclass, kUsbmuxInterfaceClass, usbmux_interface_);
+      if (has_usbmux) {
+        dev->Open();
+        bool match = dev->GetSerialNumber() == usb_serial;
+        dev->Close();
+        return match;
+      }
+    }
+    return false;
+  });
+  return devices.size() > 0 ? std::move(devices.at(0)) : nullptr;  // TODO:
 }
 
 // static
 DeviceManager::UsbDeviceList DeviceManager::FindAllIosDevices() {
-  return FindUsbDevices([](unsigned short vid, unsigned short pid) {
-    return vid == kiPhoneVendorId && pid <= kiPhoneMaxProductId;
+  return FindUsbDevices([](UsbDevice* dev) {
+    if (dev->GetVendorId() == kUSBAppleVendorID) {
+      UsbInterface usbmux_interface_;
+      return dev->FindInterface(kVendorSpecInterfaceclass, kUsbmuxInterfaceClass,
+                                usbmux_interface_);
+    }
+    return false;
   });
 }

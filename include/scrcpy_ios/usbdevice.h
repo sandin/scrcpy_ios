@@ -53,6 +53,8 @@ class UsbDevice {
 
   std::string GetName() const;
   std::string GetSerialNumber() const;
+  unsigned short GetVendorId() const;
+  unsigned short GetProductId() const;
 
  private:
 #ifdef LIBUSB_WIN32
@@ -62,7 +64,7 @@ class UsbDevice {
 };
 
 // Find all usb devices with a custom filter
-using UsbDeviceFilter = std::function<bool(unsigned short, unsigned short)>;
+using UsbDeviceFilter = std::function<bool(UsbDevice*)>;
 std::vector<std::unique_ptr<UsbDevice>> FindUsbDevices(UsbDeviceFilter filter);
 
 }  // namespace scrcpy_ios

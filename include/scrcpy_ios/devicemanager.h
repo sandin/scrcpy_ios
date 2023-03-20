@@ -9,6 +9,12 @@
 
 namespace scrcpy_ios {
 
+constexpr int kUSBAppleVendorID = 0x05AC;
+
+constexpr int kVendorSpecInterfaceclass = 0xFF;
+constexpr int kUsbmuxInterfaceClass = 0xFE;
+constexpr int kQuicktimeInterfaceClass = 0x2A;
+
 class DeviceManager {
  public:
   using UsbDeviceList = std::vector<std::unique_ptr<UsbDevice>>;
