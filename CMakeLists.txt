@@ -21,11 +21,13 @@ include_directories("./include")
 set(HEADER_FILES
     include/scrcpy_ios/screenrecorder.h
     include/scrcpy_ios/usbdevice.h
+    include/scrcpy_ios/quicktime_protocol.h
     include/scrcpy_ios/devicemanager.h
 )
 set(SOURCE_FILES
     src/usbdevice_win.cpp
     src/devicemanager.cpp
+    src/quicktime_protocol.cpp
     src/screenrecorder.cpp
 )
 

@@ -3,6 +3,7 @@
 
 #include "scrcpy_ios/macro_def.h"
 #include "scrcpy_ios/usbdevice.h"
+#include "scrcpy_ios/utils.h"
 
 using namespace scrcpy_ios;
 
@@ -76,6 +77,8 @@ bool UsbDevice::FindInterface(unsigned char interface_class, unsigned char inter
           result.endpoints_size = altsetting.bNumEndpoints;
           for (int y = 0; y < altsetting.bNumEndpoints; ++y) {
             struct usb_endpoint_descriptor& endpoint = altsetting.endpoint[y];
+            ISCRCPY_LOG_V("Found endpoint bEndpointAddress=%d, wMaxPacketSize=%d\n",
+                          endpoint.bEndpointAddress, endpoint.wMaxPacketSize);
             result.endpoints[y].address = endpoint.bEndpointAddress;
             result.endpoints[y].number = endpoint.bEndpointAddress & ENDPOINT_NUM_MASK;
             result.endpoints[y].direction =
@@ -93,26 +96,39 @@ bool UsbDevice::FindInterface(unsigned char interface_class, unsigned char inter
 
 int UsbDevice::SetConfiguration(unsigned char configuration_num) {
   ISCRCPY_ASSERT(dev_h_, "device handle can not be null!");
-  return usb_set_configuration(dev_h_, configuration_num);
+  int ret = usb_set_configuration(dev_h_, configuration_num);
+  ISCRCPY_LOG_V("usb_set_configuration, dev=%p, configuration_num=%d, ret=%d\n", dev_h_,
+                configuration_num, ret);
+  return ret;
 }
 
 int UsbDevice::ClaimInterface(unsigned char interface_num) {
   ISCRCPY_ASSERT(dev_h_, "device handle can not be null!");
-  return usb_claim_interface(dev_h_, interface_num);
+  int ret = usb_claim_interface(dev_h_, interface_num);
+  ISCRCPY_LOG_V("usb_claim_interface, dev=%p, interface_num=%d, ret=%d\n", dev_h_, interface_num,
+                ret);
+  return ret;
 }
 
 int UsbDevice::ReleaseInterface(unsigned char interface_num) {
   ISCRCPY_ASSERT(dev_h_, "device handle can not be null!");
-  return usb_release_interface(dev_h_, interface_num);
+  int ret = usb_release_interface(dev_h_, interface_num);
+  ISCRCPY_LOG_V("usb_release_interface, dev=%p, interface_num=%d, ret=%d\n", dev_h_, interface_num,
+                ret);
+  return ret;
 }
 
 int UsbDevice::ClearHalt(unsigned char endpoint_address) {
   ISCRCPY_ASSERT(dev_h_, "device handle can not be null!");
-  return usb_clear_halt(dev_h_, endpoint_address);
+  int ret = usb_clear_halt(dev_h_, endpoint_address);
+  ISCRCPY_LOG_V("usb_clear_halt, dev=%p, endpoint_address=0x%x, ret=%d\n", dev_h_, endpoint_address,
+                ret);
+  return ret;
 }
 
 bool UsbDevice::Open() {
   dev_h_ = usb_open(dev_);
+  ISCRCPY_LOG_V("usb_open, dev=%p, ret=%d\n", dev_, dev_h_);
   return dev_h_ != nullptr;
 }
 
@@ -141,7 +157,9 @@ bool UsbDevice::Reopen() {
 
 bool UsbDevice::Close() {
   ISCRCPY_ASSERT(dev_h_, "device can not be null!");
-  if (usb_close(dev_h_) == 0 /* OK */) {
+  int ret = usb_close(dev_h_);
+  ISCRCPY_LOG_V("usb_close, dev=%p, ret=%d\n", dev_h_, ret);
+  if (ret == 0 /* OK */) {
     dev_h_ = nullptr;
     return true;
   }
@@ -151,7 +169,12 @@ bool UsbDevice::Close() {
 int UsbDevice::Control(int requesttype, int request, int value, int index, char* bytes, int size,
                        int timeout) const {
   ISCRCPY_ASSERT(dev_h_, "device handle can not be null!");
-  return usb_control_msg(dev_h_, requesttype, request, value, index, bytes, size, timeout);
+  int ret = usb_control_msg(dev_h_, requesttype, request, value, index, bytes, size, timeout);
+  ISCRCPY_LOG_V(
+      "usb_control_msg, dev=%p, requesttype=%d, request=%d, value=%d, index=%d, bytes=%p, size=%d, "
+      "timeout=%d, ret=%d\n",
+      dev_h_, requesttype, request, value, index, bytes, size, timeout, ret);
+  return ret;
 }
 
 std::string UsbDevice::GetName() const {
@@ -176,6 +199,33 @@ unsigned short UsbDevice::GetProductId() const {
   ISCRCPY_ASSERT(dev_, "device can not be null!");
   return dev_->descriptor.idProduct;
 }
+
+int UsbDevice::BulkRead(unsigned char endpoint_address, const char* buf, size_t size, int timeout) {
+  ISCRCPY_ASSERT(dev_h_, "device handle can not be null!");
+  int ret = usb_bulk_read(dev_h_, endpoint_address, const_cast<char*>(buf), size, timeout);
+  ISCRCPY_LOG_V("usb_bulk_read, dev=%p, ep=0x%x, bytes=%p, size=%zu, timeout=%d, ret=%d\n", dev_h_,
+                endpoint_address, buf, size, timeout, ret);
+#if ISCRCPY_DEBUG
+  if (ret > 0) {
+    hexdump(const_cast<char*>(buf), ret, 0);
+  }
+#endif
+  return ret;
+}
+
+int UsbDevice::BulkWrite(unsigned char endpoint_address, const char* buf, size_t size,
+                         int timeout) {
+  ISCRCPY_ASSERT(dev_h_, "device handle can not be null!");
+  int ret = usb_bulk_write(dev_h_, endpoint_address, const_cast<char*>(buf), size, timeout);
+  ISCRCPY_LOG_V("usb_bulk_write, dev=%p, ep=0x%x, bytes=%p, size=%zu, timeout=%d, ret=%d\n", dev_h_,
+                endpoint_address, buf, size, timeout, ret);
+#if ISCRCPY_DEBUG
+  hexdump(const_cast<char*>(buf), size, 0);
+#endif
+  return ret;
+}
+
+std::string UsbDevice::LastError() const { return usb_strerror(); }
 
 }  // namespace scrcpy_ios
 

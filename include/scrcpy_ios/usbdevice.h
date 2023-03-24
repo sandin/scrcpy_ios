@@ -51,10 +51,15 @@ class UsbDevice {
   int ClaimInterface(unsigned char interface_num);
   int ClearHalt(unsigned char endpoint_address);
 
+  int BulkRead(unsigned char endpoint_address, const char* buf, size_t size, int timeout);
+  int BulkWrite(unsigned char endpoint_address, const char* buf, size_t size, int timeout);
+
   std::string GetName() const;
   std::string GetSerialNumber() const;
   unsigned short GetVendorId() const;
   unsigned short GetProductId() const;
+
+  std::string LastError() const;
 
  private:
 #ifdef LIBUSB_WIN32

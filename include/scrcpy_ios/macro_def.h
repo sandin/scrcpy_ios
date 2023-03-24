@@ -19,7 +19,7 @@
 #endif
 
 // LOG 
-#define ISCRCPY_LOG_LEVEL 2
+#define ISCRCPY_LOG_LEVEL 3
 #if ISCRCPY_LOG_LEVEL >= 0
 #define ISCRCPY_LOG_E(fmt, ...) \
   fprintf(stderr, "[ERROR] %s:%d:%s(): " fmt, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__)
