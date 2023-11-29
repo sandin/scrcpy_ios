@@ -6,9 +6,11 @@ Screencast for iPhone.
 ## Requirement
 
 * libusb-win32 (for windows)
-    * Download [libusb-win32-devel-filter](libusb-win32-devel-filter-1.2.7.3.exe) and install this filter driver for your iOS device.
-    * Download [libusb-win32-bin](libusb-win32-bin-1.2.7.3.zip
+    * Download [libusb-win32-devel-filter](https://sourceforge.net/projects/libusb-win32/files/libusb-win32-releases/1.2.7.3/libusb-win32-devel-filter-1.2.7.3.exe/download) and install this filter driver for your iOS device(Apple Mobile Device USB Composite Device, Service : WINUSB).
+    * Download [libusb-win32-bin](https://sourceforge.net/projects/libusb-win32/files/libusb-win32-releases/1.2.7.3/libusb-win32-bin-1.2.7.3.zip/download
 ) and unzip it to `libs/libusb-win32` directory.
+
+NOTE: we use libusb-win instead of libusb, because we need to use the `usb_control_msg` api.
 
 ## Build
 

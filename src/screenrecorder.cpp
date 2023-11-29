@@ -14,13 +14,19 @@ constexpr int kReadTimeout = 50 * 1000; // TODO
 // static
 bool ScreenRecorder::EnableQuicktimeConfigDesc(UsbDevice* dev) {
   ISCRCPY_ASSERT(dev, "device can not be null!");
-  return dev->Control(0x40, 0x52, 0x00, 0x02, NULL, 0, 1000) == UsbDevice::Ok;
+  return dev->Control(0x40, 0x52, 0x01 /* value */, 0x02 /* index */, NULL, 0, 1000) == UsbDevice::Ok;
 }
 
 // static
 bool ScreenRecorder::DisableQuicktimeConfigDesc(UsbDevice* dev) {
   ISCRCPY_ASSERT(dev, "device can not be null!");
   return dev->Control(0x40, 0x52, 0x00, 0x00, NULL, 0, 1000) == UsbDevice::Ok;
+}
+
+// static
+bool ScreenRecorder::EnableCDCNCMConfigDesc(UsbDevice* dev) {
+    ISCRCPY_ASSERT(dev, "device can not be null!");
+    return dev->Control(0x40, 0x52, 0x01 /* value */, 0x03 /* index */, NULL, 0, 1000) == UsbDevice::Ok;
 }
 
 // static
