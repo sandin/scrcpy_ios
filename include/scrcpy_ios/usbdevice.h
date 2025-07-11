@@ -8,7 +8,11 @@
 
 #ifdef LIBUSB_WIN32
 #include "lusb0_usb.h"
+#else
+#include "libusb.h"
 #endif
+
+#include "scrcpy_ios/usbmuxio.h"
 
 namespace scrcpy_ios {
 
@@ -31,9 +35,13 @@ class UsbDevice {
  public:
   enum Result { Ok = 0 };
 
+#ifdef LIBUSB_WIN32
   UsbDevice(struct usb_device* dev) : dev_(dev), dev_h_(nullptr) {}
+#else
+  UsbDevice(libusb_device* dev);
+#endif
 
-  ~UsbDevice() {}
+  ~UsbDevice();
 
   bool Open();
   bool Reopen();
@@ -55,6 +63,7 @@ class UsbDevice {
   int BulkWrite(unsigned char endpoint_address, const char* buf, size_t size, int timeout);
 
   std::string GetName() const;
+  std::wstring GetDevicePath() const;
   std::string GetSerialNumber() const;
   unsigned short GetVendorId() const;
   unsigned short GetProductId() const;
@@ -65,7 +74,12 @@ class UsbDevice {
 #ifdef LIBUSB_WIN32
   struct usb_device* dev_;
   usb_dev_handle* dev_h_;
+#else
+  libusb_device* dev_;
+  struct libusb_device_descriptor desc_;
 #endif
+
+  UsbmuxioHandle usbmuxio_handle_;
 };
 
 // Find all usb devices with a custom filter
